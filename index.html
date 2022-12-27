@@ -1,0 +1,473 @@
+<html>
+
+<head>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+    integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
+    integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"
+    integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"
+    integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6"
+    crossorigin="anonymous"></script>
+  <link href="https://fonts.googleapis.com/css?family=Roboto+Condensed:300,400|Roboto:300,400,500,700&display=swap"
+    rel="stylesheet">
+    <link rel="stylesheet" href="https://js.arcgis.com/4.15/esri/themes/light/main.css" />
+
+    <script src="https://js.arcgis.com/4.15/"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #F7F8FB;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    h2 {
+      margin: 10px 10px 0 10px;
+      margin-left: 20px;
+    }
+
+    .card {
+      margin: 10px 0 20px 0;
+      padding: 12px 15px;
+      background-color: #FFFFFF;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .15);
+    }
+
+    .meta-label {
+      color: #909090;
+      /* padding: 5px 0 0; */
+      font-size: 14px;
+      margin: 0 10px 0 20px;
+    }
+
+    .meta {
+      color: #4F4F4F;
+      /* padding: 5px 0 0; */
+      font-size: 14px;
+      margin-right: 20px;
+    }
+
+    .map {
+      padding: 0;
+      margin: 0;
+      height: 500px;
+      width: 100%;
+    }
+
+    #total-active,
+    #total-confirmed,
+    #total-deaths,
+    #total-recovered {
+      font-weight: bold;
+      font-size: 28px;
+    }
+
+
+    #total-active {
+      color: #EB5757;
+    }
+
+    #total-confirmed {
+      color: #FF7335
+    }
+
+    #total-deaths {
+      color: #2F80ED;
+    }
+
+    #total-recovered {
+      color: #27AE60;
+    }
+  </style>
+  
+  <script type="text/javascript">
+function loadchart() {
+    console.log( "ready!" );
+
+
+
+    dataset_url="https://datasource.kapsarc.org/api/records/1.0/search/?dataset=saudi-arabia-coronavirus-disease-covid-19-situation&q=&sort=-date&facet=daily_cumulative&rows=-1&facet=indicator&facet=date&facet=event&facet=region_en&facet=city_en&refine.city_en=Total"
+
+    var records;
+    var result_data;
+    
+    fetch(dataset_url)
+      .then(res => res.json())
+      .then((out) => {
+        records = out["records"];
+        var helper = {};
+        result_data = records.reduce(function (r, value) {
+          var key = value["fields"]["date"];
+          var row = value["fields"];
+          if (helper[key]) {
+            if (helper[key] && helper[key][row["daily_cumulative"]]) {
+            helper[key][row["daily_cumulative"]][row["indicator"]]=row;
+            } else{
+
+            helper[key][row["daily_cumulative"]]={};
+            helper[key][row["daily_cumulative"]][row["indicator"]]=row;
+
+            }
+          } else{
+            helper[key] = {};
+            helper[key][row["daily_cumulative"]]={};
+            helper[key][row["daily_cumulative"]][row["indicator"]]=row;
+          }
+          return helper;
+        }, []);
+
+        google.charts.load('current', { packages: ['corechart', 'line'] });
+        google.charts.setOnLoadCallback(function() { drawCurveTypes(result_data) });
+        
+
+      })
+      .catch(err => { throw err });
+
+
+
+
+    function drawCurveTypes(result_data) {
+      var last_date = Object.keys(result_data)[Object.keys(result_data).length-1];
+
+      var Total_Confirmed = result_data[last_date]["Cumulative"]["Cases"]["case_value"];
+      var Total_Active = result_data[last_date]["Cumulative"]["Active"]["case_value"];
+      var Total_Recovered =result_data[last_date]["Cumulative"]["Recoveries"]["case_value"]; 
+      var Total_Deaths = result_data[last_date]["Cumulative"]["Mortalities"]["case_value"]; 
+
+      document.getElementById("total-confirmed").innerHTML = Total_Confirmed.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById("total-active").innerHTML = Total_Active.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById("total-recovered").innerHTML = Total_Recovered.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      document.getElementById("total-deaths").innerHTML = Total_Deaths.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      var active_percent = (Total_Active * 100 / Total_Confirmed);
+      var recovered_percent = (Total_Recovered * 100 / Total_Confirmed);
+      var deaths_percent = (Total_Deaths * 100 / Total_Confirmed);
+
+      var active_x2 = active_percent - 2;
+      var recovered_x2 = active_x2 + recovered_percent;
+      var recovered_x_text = active_x2 + (recovered_percent / 2);
+
+      var deaths_x = recovered_x2;
+      var deaths_x_text = (recovered_x2 + (deaths_percent) + 0.5);
+      var newSvg = document.getElementById('cases-percentage');
+      newSvg.outerHTML += '<svg  width="100%" height="20px" xmlns="http://www.w3.org/2000/svg" version="1.1"><line x1="0" y1="15" x2="' + active_x2 + '%" y2="15" style="stroke-linecap: round;stroke: #EB5757; stroke-width: 12 ;border-radius: 10px;"></line><text x="' + (active_percent / 2) + '%" y="16" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">' + active_percent.toFixed(1) + '%</text><line x1="' + active_x2 + '%" y1="15" x2="' + (recovered_x2) + '%" y2="15" style="stroke: #27AE60; stroke-width: 12"></line><text x="' + recovered_x_text + '%" y="16" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">' + recovered_percent.toFixed(1) + '%</text><line x1="' + deaths_x + '%" y1="15" x2="100%" y2="15" style="stroke: #2F80ED; stroke-width: 12"></line><text x="' + deaths_x_text + '%" y="16" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">' + deaths_percent.toFixed(1) + '%</text></svg>';
+
+
+
+      var cumulative_data = [];
+      var daily_data = [];
+
+      Object.keys(result_data).forEach(function(date) {
+        
+        for (var row in result_data[date]["Cumulative"]) {
+          var c = result_data[date]["Cumulative"]["Cases"];
+          var a = result_data[date]["Cumulative"]["Active"];
+          var r = result_data[date]["Cumulative"]["Recoveries"];
+          var d = result_data[date]["Cumulative"]["Mortalities"];
+
+          var e = result_data[date]["Cumulative"] && result_data[date]["Cumulative"]["Cases"] && result_data[date]["Cumulative"]["Cases"]["event"];
+
+          var row = [ new Date(date),
+                    (e) ? e : null , 
+                    (c) ? c["case_value"] : null, 
+                    (a) ? a["case_value"] : null , 
+                    (r) ? r["case_value"] : null , 
+                    (d) ? d["case_value"] : null
+                    ];
+          cumulative_data.push(row);
+    
+        }
+
+        for (var d in result_data[date]["Daily"]) {
+          var c = result_data[date]["Daily"]["Cases"];
+          var a = result_data[date]["Daily"]["Active"];
+          var r = result_data[date]["Daily"]["Recoveries"];
+          var d = result_data[date]["Daily"]["Mortalities"];
+
+          var e = result_data[date]["Daily"] && result_data[date]["Daily"]["Cases"] && result_data[date]["Daily"]["Cases"]["event"];
+
+          var row = [ new Date(date),
+                    (e) ? e : null , 
+                    (c) ? c["case_value"] : null, 
+                    (a) ? a["case_value"] : null , 
+                    (r) ? r["case_value"] : null , 
+                    (d) ? d["case_value"] : null
+                    ];
+          daily_data.push(row);
+        }
+    
+    
+      });
+
+
+      var data = new google.visualization.DataTable();
+      
+      data.addColumn('date', 'Date');
+      data.addColumn({ type: 'string', role: 'annotation' });
+      data.addColumn('number', 'Confirmed');
+      data.addColumn('number', 'Active');
+      data.addColumn('number', 'Recovered');
+      data.addColumn('number', 'Deaths');
+      data.addRows(daily_data);
+
+
+      var options = {
+
+        'height': 500,
+        chartArea: { left: 50, top: 30, height: '75%', width: "93%" },
+        'legend': 'bottom',
+        hAxis: {
+          format: 'M/d',
+          // title: 'Time'
+
+        },
+        vAxis: {
+          // title: 'Popularity'
+          format: 'short'
+        },
+        series: {
+          // 1: {curveType: 'function'}
+          0: { color: '#FF7335' },
+          1: { color: '#EB5757' },
+          2: { color: '#27AE60' },
+          3: { color: '#2F80ED' }
+        },
+        annotations: {
+          style: 'line',
+          textStyle: {
+            opacity: 0.5
+          }
+        }
+      };
+      var chart = new google.visualization.LineChart(document.getElementById('chart_daily'));
+      chart.draw(data, options);
+
+
+
+
+
+
+
+
+
+
+
+      var data = new google.visualization.DataTable();
+      
+      data.addColumn('date', 'Date');
+      data.addColumn({ type: 'string', role: 'annotation' });
+      data.addColumn('number', 'Confirmed');
+      data.addColumn('number', 'Active');
+      data.addColumn('number', 'Recovered');
+      data.addColumn('number', 'Deaths');
+      data.addRows(cumulative_data);
+
+
+      var options = {
+        'height': 500,
+
+        chartArea: { left: 50, top: 30, height: '75%', 'width': '93%' },
+        'legend': 'bottom',
+        pointSize: 2,
+        hAxis: {
+          format: 'M/d',
+          // title: 'Time'
+
+        },
+        vAxis: {
+          // title: 'Popularity'
+          format: 'short'
+        },
+        series: {
+          // 1: {curveType: 'function'}
+          0: { color: '#FF7335' },
+          1: { color: '#EB5757' },
+          2: { color: '#27AE60' },
+          3: { color: '#2F80ED' },
+        },
+        annotations: {
+          style: 'line',
+          textStyle: {
+            opacity: 0.5
+          }
+        }
+      };
+      var chart = new google.visualization.LineChart(document.getElementById('chart_cumulative'));
+      chart.draw(data, options);
+
+
+
+    }
+
+
+};
+
+    
+
+
+</script>
+</head>
+
+<body onload="javascript:loadchart();">
+
+  <div class="container">
+    <div class="row">
+      <h2>COVID-19 Cases in Saudi Arabia
+	  create by Ghalih Almozaini student at Qassim university</h2>
+    </div>
+    <div class="row">
+      <span class="meta-label">Data Source: </span>
+      <span class="meta">
+        <a href="https://datasource.kapsarc.org/explore/dataset/saudi-arabia-coronavirus-disease-covid-19-situation/"
+          target="_blank">
+          Ministry of Health
+        </a>
+      </span>
+      <!-- <span class="meta-label">Last Updated: </span> -->
+      <!-- <span class="meta"> **</span> -->
+
+
+    </div>
+    <!-- <div class="row" style="margin-top: 25px;">
+    <div class="col-md-3" style="float: center;">
+
+      <div class="text-right">Confirmed Cases Overview</div>
+    </div>
+    <div class="col-md-9">
+      <svg width="100%" height="20px" xmlns="http://www.w3.org/2000/svg" version="1.1"> 
+        <line class="stroke-3" x1="40" x2="250" y1="100" y2="100" style=" stroke-linecap: round;"/>
+
+        
+        <line x1="0" y1="12" x2="80%" y2="12" style="stroke-linecap: round;stroke: #EB5757; stroke-width: 12 ;border-radius: 10px;"></line>
+        <text x="40%" y="13" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">80%</text>
+        <line x1="80%" y1="12" x2="93%" y2="12" style="stroke: green; stroke-width: 12"></line>
+        <text x="87%" y="13" dominant-baseline="middle" text-anchor="middle" style="fill: white; font-size:10">13%</text>
+      </svg>
+    </div>
+    
+  </div> -->
+    <div class="card" style="padding: 10px 0 0 0;">
+      <div class="row">
+        <div class="col-md-3">
+          <div id="total-confirmed" class="text-center">
+          </div>
+          <div class="text-center">
+            Total Confirmed Cases
+
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div id="total-active">
+          </div>
+          <div class="">
+            Active Cases
+
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div id="total-recovered">
+          </div>
+          <div class="">
+            Recovered cases
+          </div>
+        </div>
+        <div class="col-md-3 text-center">
+          <div id="total-deaths">
+          </div>
+          <div class="">
+            Death cases
+
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-3">
+        </div>
+
+
+        <div class="col-md-9">
+          <div id="cases-percentage"></div>
+
+          </svg>
+
+        </div>
+
+      </div>
+    </div>
+
+
+    <div class="row" style="margin: 10px 0;">
+      <div class="col-md-12">
+        <div class="row">
+          <div class="col-md-12 card">
+            <div class="">
+              Total Cases - Cumulative
+            </div>
+            <div id="chart_cumulative"></div>
+          </div>
+          <div class="col-md-12 card">
+            <div class="">
+              Cases - Daily
+            </div>
+            <div id="chart_daily"></div>
+          </div>
+
+        </div>
+
+      </div>
+      <!-- <div class="col-md-2">filters</div>-->
+    </div>
+
+    <!-- <div class="col-md-6">
+      <div class="card" id="map" ></div>
+    </div> -->
+<div class="row">
+<div class="col-md-5">
+
+
+
+    <!-- <div class="card">
+      <div class="row">
+        <div class="col-md-8">
+          <div>
+            <div class="map" id="confirmed-map"> </div>
+            <div class="map" id="active-map"></div>
+            <div class="map" id="recovered-map"></div>
+            <div class="map" id="deaths-map"></div>
+
+            <div class="map" id="confirmed-map-region"> </div>
+            <div class="map" id="active-map-region"></div>
+            <div class="map" id="recovered-map-region"></div>
+            <div class="map" id="deaths-map-region"></div>
+
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div>
+            <div id="tree_confirmed1"></div>
+            <div id="tree_active1"></div>
+            <div id="tree_recovered1"></div>
+            <div id="tree_deaths1"></div>
+            <div id="tree_confirmed"></div>
+            <div id="tree_active"></div>
+            <div id="tree_recovered"></div>
+            <div id="tree_deaths"></div>
+          </div>
+        </div>
+      </div>
+    </div> -->
+
+
+  </div>
+
+
+  <!-- <div id="chart_div1" style="width: 900px; height: 500px;"></div>  -->
+  <!-- <div id="visualization" ></div> -->
+
+</body>
+
+</html>
